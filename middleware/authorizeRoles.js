@@ -1,34 +1,111 @@
-const Member = require("../mongoose.models/member"); // استدعاء الموديل الخاص بالمستخدمين
+const Member = require("../mongoose.models/member");
+const createError = require("../utils/createError");
+const httpStatusText = require("../utils/httpStatusText");
 
+/**
+ * Middleware to authorize users based on their roles
+ * @param {string[]} allowedRoles - Array of roles that are allowed to access the route
+ * @returns {Function} Express middleware function
+ */
 const authorizeRoles = (allowedRoles) => {
+    if (!Array.isArray(allowedRoles) || allowedRoles.length === 0) {
+        throw new Error('Allowed roles must be a non-empty array');
+    }
+    
     return async (req, res, next) => {
         try {
-            // تأكد أن req.decoded.email موجود بعد فك الـ JWT
+            // Check if user is authenticated
             if (!req.decoded || !req.decoded.email) {
-                return res.status(401).json({ message: "Unauthorized. No email provided." });
+                return res.status(401).json({
+                    success: false,
+                    message: "Authentication required. Please log in."
+                });
             }
-
-            // البحث عن المستخدم في قاعدة البيانات
-            const user = await Member.findOne({ email: req.decoded.email });
-
+            
+            // Check if email is valid
+            const email = req.decoded.email.trim();
+            if (!email || email.length === 0) {
+                return res.status(401).json({
+                    success: false,
+                    message: "Invalid authentication token."
+                });
+            }
+            
+            // Find user in database
+            const user = await Member.findOne({ email }).select('role committee name email');
+            
             if (!user) {
-                return res.status(404).json({ message: "User not found." });
+                return res.status(404).json({
+                    success: false,
+                    message: "User not found. Please contact support."
+                });
             }
-
-            // التحقق مما إذا كان دوره ضمن الأدوار المسموح بها
+            
+            // Check if user's role is in the allowed roles
             if (!allowedRoles.includes(user.role)) {
-                return res.status(403).json({ message: "Access denied. Insufficient permissions." });
+                return res.status(403).json({
+                    success: false,
+                    message: "Access denied. Insufficient permissions.",
+                    requiredRoles: allowedRoles,
+                    userRole: user.role
+                });
             }
-
-            // إضافة بيانات المستخدم إلى الطلب
-            req.user = user;
-
-            // السماح بالانتقال إلى الـ middleware التالي
+            
+            // Add user data to request object for use in subsequent middleware/routes
+            req.user = {
+                id: user._id,
+                email: user.email,
+                role: user.role,
+                committee: user.committee,
+                name: user.name
+            };
+            
+            // Log successful authorization
+            console.log('User authorized:', {
+                email: user.email,
+                role: user.role,
+                committee: user.committee,
+                route: req.originalUrl,
+                method: req.method,
+                timestamp: new Date().toISOString()
+            });
+            
             next();
+            
         } catch (error) {
-            res.status(500).json({ message: "Server error.", error: error.message });
+            console.error('Authorization error:', {
+                error: error.message,
+                email: req.decoded?.email,
+                route: req.originalUrl,
+                timestamp: new Date().toISOString()
+            });
+            
+            res.status(500).json({
+                success: false,
+                message: "Server error during authorization. Please try again later."
+            });
         }
     };
 };
 
-module.exports = authorizeRoles;
+/**
+ * Middleware to check if user is a committee member
+ */
+const isCommitteeMember = authorizeRoles(['member', 'head', 'Vice']);
+
+/**
+ * Middleware to check if user is a head or vice
+ */
+const isHeadOrVice = authorizeRoles(['head', 'Vice']);
+
+/**
+ * Middleware to check if user is a head only
+ */
+const isHead = authorizeRoles(['head']);
+
+module.exports = {
+    authorizeRoles,
+    isCommitteeMember,
+    isHeadOrVice,
+    isHead
+};

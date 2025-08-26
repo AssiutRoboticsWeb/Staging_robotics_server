@@ -83,8 +83,7 @@ const register = asyncWrapper(async (req, res, next) => {
     }
     if (oldEmail) {
 
-        const generateToken = jwt.generateToken()
-        const token = await generateToken({ email }, "48h");
+        const token = await jwt.generateToken({ email }, "48h");
         // https://assiut-robotics-zeta.vercel.app/
         const token_url = `https://assiut-robotics-zeta.vercel.app/members/verifyEmail/${token}`
         console.log("req.body is : ", req.body);
@@ -115,8 +114,7 @@ const register = asyncWrapper(async (req, res, next) => {
         phoneNumber,
     })
     await newMember.save();
-    const generateToken = jwt.generateToken()
-    const token = await generateToken({ email }, "1h");
+    const token = await jwt.generateToken({ email }, "1h");
     // https://assiut-robotics-zeta.vercel.app/
     const token_url = `https://assiut-robotics-zeta.vercel.app/members/verifyEmail/${token}`
     console.log("req.body is : ", req.body);
@@ -150,13 +148,17 @@ const verifyEmail = asyncWrapper(async (req, res, next) => {
 })
 
 const login = asyncWrapper(async (req, res) => {
-
-
     console.log("body", req.body);
-    const { email, password, remember,ip } = req.body;
+    const { email, password, remember, ip} = req.body;
+    
+    // Validate required fields
+    if (!email || !password) {
+        const error = createError(400, httpStatusText.FAIL, "Email and password are required");
+        throw (error);
+    }
+    
     const oldMember = await member.findOne({ email })
  
-   
     // console.log(oldMember);
 
     if (!oldMember) {
@@ -164,13 +166,10 @@ const login = asyncWrapper(async (req, res) => {
         throw (error);
     }
 
-
     if (!oldMember.verified) {
         const error = createError(404, httpStatusText.FAIL, "verify your email by click on the link on your email")
         throw (error);
-
     }
-
 
     const truePass = await bcrypt.comparePassword(password, oldMember.password);
     if (!truePass) {
@@ -178,36 +177,39 @@ const login = asyncWrapper(async (req, res) => {
         throw (error);
     }
 
-
     if (oldMember.role == "not accepted") {
         const error = createError(401, "un authorized", "wait until your account be accepted")
         throw (error);
     }
-    const generateToken = jwt.generateToken();
-
-    const token = await generateToken({ email }, remember);
-
-    // check if the ip is already in the visits array
-    const visit = await Visits.findOne({ ip }, { _id: 1 });
-    if(!visit){
-        const newVisit = new Visits({ ip });
-        await newVisit.save();
-        oldMember.visits.push(newVisit._id);
-    }else{
-        if(!oldMember.visits.includes(visit._id)){
-            oldMember.visits.push(visit._id);
+    
+    try {
+        console.log("Generating token for email:", email, "with remember:", remember);
+        const token = await jwt.generateToken({ email }, remember || "10h");
+        console.log("Token generated successfully");
+        
+        // check if the ip is already in the visits array
+        const visit = await Visits.findOne({ ip }, { _id: 1 });
+        if(!visit){
+            const newVisit = new Visits({ ip });
+            await newVisit.save();
+            oldMember.visits.push(newVisit._id);
+        }else{
+            if(!oldMember.visits.includes(visit._id)){
+                oldMember.visits.push(visit._id);
+            }
         }
+
+        await oldMember.save();
+        res.status(200).json({
+            status: httpStatusText.SUCCESS,
+            data: { token: token, memberData: oldMember },
+            message: "Your are logged in",
+        });
+    } catch (tokenError) {
+        console.error("Token generation error:", tokenError);
+        const error = createError(500, httpStatusText.ERROR, "Failed to generate authentication token");
+        throw (error);
     }
-
-
-    await oldMember.save();
-    res.status(200).json({
-        status: httpStatusText.SUCCESS,
-        data: { token: token, memberData: oldMember },
-        message: "Your are logged in",
-    });
-
-
 });
 
 const getAllMembers = asyncWrapper(async (req, res) => {
@@ -1764,8 +1766,7 @@ const sendEmailFeedBack=asyncWrapper(async (req, res) => {
         awards: data.awards
     };
 
-        const generateToken = jwt.generateToken()
-        const token = await generateToken( evaluationData);
+        const token = await jwt.generateToken( evaluationData);
     await sendEmail({
         email: Member.email,
         subject: 'Feedback',
