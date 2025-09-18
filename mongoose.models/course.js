@@ -24,7 +24,6 @@ const courseSchema = new mongoose.Schema({
             taskUrl: { type: String },
             file:{
                 type: String,
-
             },
             headPercent: { type: Number, default: 50 },
             deadlinePercent: { type: Number, default: 20 },
@@ -41,6 +40,7 @@ const courseSchema = new mongoose.Schema({
             ]
         }
     ]
+
 });
 
 const Course = mongoose.model('Course', courseSchema);

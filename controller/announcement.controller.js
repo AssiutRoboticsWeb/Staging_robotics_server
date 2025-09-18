@@ -57,6 +57,7 @@ const getAnnouncements = asyncWrapper(async (req, res) => {
     await Announcement.deleteMany({ dateOfDelete: { $lt: new Date() } });
 
     const email = req.decoded.email;
+    console.log(email);
     const member = await Member.findOne({ email });
     if (!member) throw createError(404, httpStatusText.FAIL, "Member not found");
 
