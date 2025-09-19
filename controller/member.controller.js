@@ -391,7 +391,7 @@ const changePass = asyncWrapper(async (req, res) => {
 const getCommittee = asyncWrapper(
     async (req, res, next) => {
         const Member_email = req.decoded.email;
-        // if(emial)
+        // if(email)
         const Member = await member.findOne({ email: Member_email });
         const com = req.params.com;
         if(Member.role != "head" && Member.committee != com) {

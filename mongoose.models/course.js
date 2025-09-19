@@ -1,4 +1,19 @@
 const mongoose = require('mongoose');
+const Member = require('./member');
+
+// Define Submission schema
+const submissionSchema = new mongoose.Schema({
+    member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true },
+    submissionLink: { type: String, default: '*' },
+    submissionDate: { type: Date },
+    headEvaluation: { type: Number, min: 0, max: 100, default: 0 },
+    deadlineEvaluation: { type: Number, min: 0, max: 100, default: 0 },
+    rate: { type: Number },
+    notes: { type: String },
+    marker: { type: mongoose.Schema.Types.ObjectId, ref: 'Member' }
+});
+
+const Submission = mongoose.model('Submission', submissionSchema);
 
 const courseSchema = new mongoose.Schema({
     name: {
@@ -29,19 +44,26 @@ const courseSchema = new mongoose.Schema({
             deadlinePercent: { type: Number, default: 20 },
             submissions: [
                 {
-                    member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true },
-                    submissionLink: { type: String, default: '*' },
-                    submissionDate: { type: Date },
-                    headEvaluation: { type: Number, min: 0, max: 100, default: 0 },       // بدل -1 خلي 0 و تحديد المدى
-                    deadlineEvaluation: { type: Number, min: 0, max: 100, default: 0 },   // بدل 0 زي ما هو بس مع تحديد المدى
-                    rate: { type: Number },
-                    notes: { type: String }
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: 'Submission'
+                }
+            ]
+        }
+    ],
+    admins:[
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Member',
+            markedTasks : [
+                {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: 'Submission'
                 }
             ]
         }
     ]
-
 });
 
 const Course = mongoose.model('Course', courseSchema);
-module.exports = Course;
+module.exports = {Course, Submission};
+    
