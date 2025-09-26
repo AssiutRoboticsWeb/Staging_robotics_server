@@ -3,6 +3,9 @@ const express = require('express');
 const router = express.Router();
 const trackController = require('../controller/track_controller');
 const jwt = require('../middleware/jwt');
+
+// Get all tracks with committee
+router.get('/:committee',trackController.getAllTracks);
 router.use(jwt.verify);
 
 
@@ -11,7 +14,7 @@ router.use(jwt.verify);
 router.post('/',trackController.createTrack);
 
 // Get all tracks
-router.get('/',trackController.getAllTracks);
+// router.get('/',trackController.getAllTracks);
 // Get, Update, Delete track by ID
 router.route("/:id")
   .get(trackController.getTrackById)    

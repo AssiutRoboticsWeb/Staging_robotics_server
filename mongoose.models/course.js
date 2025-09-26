@@ -24,6 +24,10 @@ const courseSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    committee: {
+        type: String,
+        required: true
+    },
     tracks: [
         {
             type: mongoose.Schema.Types.ObjectId,

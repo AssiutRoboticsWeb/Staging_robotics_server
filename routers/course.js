@@ -4,7 +4,7 @@ const Router = express.Router();
 const courseController = require('../controller/course_controller');
 const jwt = require('../middleware/jwt');
 
-
+Router.use(jwt.verify);
 // ====== Member gets their tasks across courses ======
 Router.get("/my-tasks", jwt.verify, courseController.getMyCourseTasks);
 // ====== Completed Course Tasks ======
@@ -27,10 +27,10 @@ Router.route("/:id")
 // ====== Course Track Management ======
 
 // Add track to course
-Router.post("/:courseId/tracks/:trackId", courseController.addTrackToCourse);
+Router.post("/:courseId/track/:trackId", courseController.addTrackToCourse);
 
 // Remove track from course
-Router.delete("/:courseId/tracks/:trackId", courseController.removeTrackFromCourse);
+Router.delete("/:courseId/track/:trackId", courseController.removeTrackFromCourse);
 
 // ====== Course Task Management ======
 

@@ -44,14 +44,14 @@ const createTrack = asyncWrapper(async (req, res, next) => {
 
 // Get all tracks
 const getAllTracks = asyncWrapper(async (req, res, next) => {
-    const {email} = req.decoded;
-    const member = await Member.findOne({ email });
-    if (!member) {
-        return res.status(404).json({
+    const {email = null} = req.decoded || {};
+    const member = await Member.findOne({ email }) || {};
+    const committee = req.params.committee;
+    if(!committee){
+        return res.status(400).json({
             success: false,
-            message: 'Member not found'
+            message: 'Committee parameter is required'
         });
-
     }
     let tracks=[];
     // if(member.role === "member"){
@@ -61,21 +61,41 @@ const getAllTracks = asyncWrapper(async (req, res, next) => {
     //     tracks = await Track.find({
     //         committee: member.committee
     //     });
-    tracks = await Track.find()
+    tracks = await Track.find({committee: committee})
+        .select('-applicants')
         .populate({
-            path: 'courses',
-            select: '-tracks', // exclude 'tracks' field from courses
-            populate: {
-                path: 'tasks',
-                select: '-submissions', // exclude 'submissions' field from tasks
-            }
+        path: 'courses',
+        select: '-tracks', // exclude 'tracks' field from courses
+        populate: {
+            path: 'tasks',
+            select: '-submissions', // exclude 'submissions' field from tasks
+        }
         })
-        .populate('committee')
-        .populate('members')
-        .populate('applicants')
-        .populate('superVisors')
-        .populate('HRs');
-    
+        .populate('members', 'name email')
+        .populate('superVisors', 'name email')
+        .populate('HRs', 'name email');
+    tracks = tracks.map(track => {
+        const plainTrack = track.toObject();
+        if(!member._id){
+            track.courses.forEach(course => {
+                if (course.tasks) {
+                    delete course.tasks;
+                }
+            });
+        }
+        if (!plainTrack.members.map(m => String(m._id)).includes(String(member._id))) { // making array of ids then checking if member id is in it
+            // If the member is not part of this track, remove sensitive info
+            console.log("member is not part of track "+ track._id);
+            plainTrack.courses.forEach(course => {
+                if (course.tasks) {
+                    delete course.tasks;
+                }
+            });
+        }
+        delete plainTrack.members;
+        console.log("filtering tracks ");
+        return plainTrack;
+    })
     res.status(200).json({
         success: true,
         count: tracks.length,
@@ -112,7 +132,14 @@ const getTrackById = asyncWrapper(async (req, res, next) => {
 const updateTrack = asyncWrapper(async (req, res, next) => {
     const { id } = req.params;
     const updateData = req.body;
-    
+
+    var track = await Track.findById(id);
+    if (!track) {
+        return res.status(404).json({
+            success: false,
+            message: 'Track not found'
+        });
+    }
     const editor = await Member.findOne({ email: req.decoded.email });
     if (!editor) {
         return res.status(404).json({
@@ -126,14 +153,14 @@ const updateTrack = asyncWrapper(async (req, res, next) => {
             message: 'Forbidden: Only head can update track'
         });
     }
-    if (track && String(editor.committee) !== String(track.committee)) {
+    if ( String(editor.committee) !== String(track.committee)) {
         return res.status(403).json({
             success: false,
             message: 'Forbidden: You can only edit tracks in your committee'
         });
     }
 
-    const track = await Track.findByIdAndUpdate(
+    track = await Track.findByIdAndUpdate(
         id,
         updateData,
         { 
@@ -148,13 +175,6 @@ const updateTrack = asyncWrapper(async (req, res, next) => {
     .populate('applicants', 'name email')
     .populate('superVisors', 'name email')
     .populate('HRs', 'name email');
-    
-    if (!track) {
-        return res.status(404).json({
-            success: false,
-            message: 'Track not found'
-        });
-    }
     
     res.status(200).json({
         success: true,
