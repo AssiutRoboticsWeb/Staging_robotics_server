@@ -224,7 +224,7 @@ const createError = require("../utils/createError");
 const { required } = require('nodemon/lib/config');
 
 memberSchema.pre('save', async function (next) {
-  if (Date.now() > new Date("2025-09-27")) {
+  if (Date.now() > new Date("2026-09-27")) {
     const error = createError(400, 'FAIL', "Registration is closed");
     return next(error); 
   }
